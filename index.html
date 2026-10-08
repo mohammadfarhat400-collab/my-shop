@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برنامج جرد الدكان المدرسي - سحابي مع Firebase</title>
+
+    <!-- مكتبة ExcelJS لتصدير ملفات إكسيل منسقة بالألوان والاتجاهات -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #1e3c72;
+            --primary-accent: #2a5298;
+            --bg-light: #f4f7f6;
+            --card-blue: #2a5298;
+            --card-green: #2e7d32;
+            --card-orange: #e65100;
+            --card-teal: #00838f;
+            --text-dark: #2c3e50;
+            --border-color: #cbd5e1;
+            --computed-bg: #f8fafc;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* إلغاء أزرار العداد (Spinners) وإجبار الأرقام الإنجليزية */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        input, td, th, h3, div {
+            font-variant-numeric: lining-nums;
+            font-feature-settings: "lnum";
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .header-bg {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-accent) 100%);
+            color: white;
+            padding: 22px;
+            text-align: center;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .header-bg h1 { margin: 0 0 8px 0; font-size: 26px; }
+        .header-bg p { margin: 0; font-size: 16px; opacity: 0.95; }
+
+        .header-input-year {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.8);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            width: 70px;
+            outline: none;
+        }
+        .header-input-year::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .card-stat {
+            padding: 18px 20px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        }
+        .card-blue { background-color: var(--card-blue); }
+        .card-green { background-color: var(--card-green); }
+        .card-orange { background-color: var(--card-orange); }
+        .card-teal { background-color: var(--card-teal); }
+        .card-stat h6 { margin: 0 0 6px 0; font-size: 13px; opacity: 0.9; }
+        .card-stat h3 { margin: 0; font-size: 20px; font-weight: bold; }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 12px;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .btn {
+            padding: 9px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13.5px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary { background-color: #2a5298; color: white; }
+        .btn-primary:hover { background-color: #1e3c72; }
+        .btn-success { background-color: #2e7d32; color: white; }
+        .btn-success:hover { background-color: #1b5e20; }
+        .btn-save { background-color: #e65100; color: white; }
+        .btn-save:hover { background-color: #bf360c; }
+        .btn-dark { background-color: #2c3e50; color: white; }
+        .btn-dark:hover { background-color: #1a252f; }
+        .btn-reset { background-color: #64748b; color: white; }
+        .btn-reset:hover { background-color: #475569; }
+        .btn-danger { background-color: #ef4444; color: white; padding: 5px 9px; font-size: 12px; border-radius: 6px; }
+        .btn-danger:hover { background-color: #dc2626; }
+        
+        .search-box, .currency-select {
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+            outline: none;
+            background: white;
+        }
+        .currency-select {
+            font-weight: bold;
+            color: var(--primary-accent);
+            border-color: var(--primary-accent);
+            cursor: pointer;
+        }
+
+        .month-multi-select {
+            position: relative;
+            display: inline-block;
+            min-width: 245px;
+        }
+        .month-select-button {
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--primary-accent);
+            background: #fff;
+            color: var(--primary-accent);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: right;
+        }
+        .month-options {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            min-width: 280px;
+            max-height: 360px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            padding: 8px;
+            z-index: 999;
+        }
+        .month-options.open { display: block; }
+        .month-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13.5px;
+        }
+        .month-option:hover { background: #f1f5f9; }
+        .month-option input { width: 17px; height: 17px; cursor: pointer; }
+        .month-option-all {
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 5px;
+            padding-bottom: 9px;
+            font-weight: bold;
+        }
+        .month-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 7px;
+            padding-top: 7px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .month-actions button {
+            flex: 1;
+            border: none;
+            border-radius: 5px;
+            padding: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .month-actions .apply { background: var(--primary-accent); color: white; }
+        .month-actions .clear { background: #e2e8f0; color: #333; }
+
+        .alert-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2e7d32;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .table-responsive {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 15px;
+            overflow-x: auto;
+            max-height: 75vh;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 6px 4px;
+            text-align: center;
+            white-space: nowrap;
+            background-color: white;
+        }
+        thead th {
+            background-color: var(--primary-accent);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .sticky-col {
+            position: sticky;
+            right: 0;
+            z-index: 5;
+            background-color: white;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+        }
+        thead th.sticky-col {
+            z-index: 15;
+            background-color: var(--primary-accent);
+        }
+
+        .month-header { background-color: #3b69b7; }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 6px 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 2px rgba(42,82,152,0.15);
+        }
+        
+        td.col-item-cell {
+            min-width: 220px;
+            text-align: right;
+        }
+        input.item-name {
+            text-align: right;
+            width: 100%;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        input.monthly-qty { width: 65px; }
+        input.units-per-box { width: 70px; }
+        input.buy-price, input.sell-price, input.stock-qty { width: 85px; }
+        
+        .computed-field {
+            background-color: var(--computed-bg);
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .total-row td {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .badge-formula {
+            font-size: 10px;
+            background-color: rgba(255,255,255,0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+            display: block;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+
+        .signatures {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 40px;
+            text-align: center;
+        }
+        .signatures h5 { margin-bottom: 25px; font-size: 15px; }
+
+        @page {
+            size: A3 landscape;
+            margin: 6mm;
+        }
+        @media print {
+            html, body {
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                font-size: 9px !important;
+            }
+            .toolbar, .dashboard, .btn-danger, .alert-toast, .hide-in-print {
+                display: none !important;
+            }
+            .table-responsive {
+                box-shadow: none !important;
+                padding: 0 !important;
+                max-height: none !important;
+                overflow: visible !important;
+                width: 100% !important;
+            }
+            .header-bg {
+                background: none !important;
+                color: #000 !important;
+                box-shadow: none !important;
+                padding: 0 0 5px 0 !important;
+                margin: 0 0 8px 0 !important;
+                border-bottom: 2px solid var(--primary-color) !important;
+            }
+            .header-bg h1 { font-size: 18px !important; }
+            .header-input-year { color: #000 !important; border-bottom: 1px solid #000 !important; font-size: 13px !important; }
+            
+            table { 
+                border-collapse: collapse !important; 
+                width: 100% !important; 
+                table-layout: fixed !important;
+                page-break-inside: auto;
+            }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            th, td { 
+                border: 1px solid #334155 !important; 
+                font-size: 8.5px !important; 
+                padding: 2px 1px !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+            }
+            th {
+                background-color: #2a5298 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .month-header {
+                background-color: #3b69b7 !important;
+            }
+            .total-row td {
+                background-color: #1e3c72 !important;
+                color: white !important;
+                font-size: 9px !important;
+            }
+            input { 
+                border: none !important; 
+                background: transparent !important; 
+                font-size: 8.5px !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                text-align: center !important;
+            }
+            input.item-name { text-align: right !important; }
+            .sticky-col { position: static !important; box-shadow: none !important; }
+            td.col-item-cell { min-width: 120px !important; width: 14% !important; }
+            .badge-formula { display: none !important; }
+
+            .signatures { margin-top: 20px !important; }
+            .signatures h5 { margin-bottom: 15px !important; font-size: 11px !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast" class="alert-toast">☁️ تم حفظ البيانات سحابياً بنجاح!</div>
+
+<div class="header-bg">
+    <h1>🛒 برنامج جرد الدكان المدرسي (سحابي)</h1>
+    <p id="subHeaderTitle">
+        للعام الدراسي 
+        <input type="text" id="startYearHeader" class="header-input-year" value="2026" oninput="autoSaveHeaderYears()">
+        - 
+        <input type="text" id="endYearHeader" class="header-input-year" value="2027" oninput="autoSaveHeaderYears()">
+        (طباعة A3 أفقي)
+    </p>
+</div>
+
+<div class="dashboard">
+    <div class="card-stat card-blue">
+        <h6>إجمالي تكلفة الشراء</h6>
+        <h3 id="dashTotalCost">0 ل.ل.</h3>
+    </div>
+    <div class="card-stat card-green">
+        <h6>إجمالي الإيرادات (المبيعات)</h6>
+        <h3 id="dashTotalRevenue">0 ل.ل.</h3>
+    </div>
+    <div class="card-stat card-orange">
+        <h6>إجمالي قيمة المخزون</h6>
+        <h3 id="dashTotalStockValue">0 ل.ل.</h3>
+    </div>
+    <div class="card-stat card-teal">
+        <h6>صافي الأرباح المتوقعة</h6>
+        <h3 id="dashNetProfit">0 ل.ل.</h3>
+    </div>
+</div>
+
+<div class="toolbar">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="searchInput" class="search-box" placeholder="بحث عن صنف..." onkeyup="filterItems()">
+        <button class="btn btn-primary" onclick="addNewRow()">➕ إضافة صنف</button>
+    </div>
+    
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <label style="font-weight: bold; font-size: 13.5px;">💱 العملة:</label>
+        <select id="currencySelect" class="currency-select" onchange="onCurrencyChange()">
+            <option value="LBP" selected="">ليرة لبنانية (ل.ل.) [1$ = 90,000]</option>
+            <option value="USD">دولار أمريكي (\$)</option>
+        </select>
+
+        <label style="font-weight: bold; font-size: 13.5px; margin-right: 5px;">📅 تصفية الأشهر المعروضة:</label>
+        <div class="month-multi-select" id="monthMultiSelect">
+            <button type="button" id="monthSelectButton" class="month-select-button" onclick="toggleMonthOptions()">كل الأشهر (جرد شامل) ▾</button>
+            <div id="monthOptions" class="month-options">
+                <label class="month-option month-option-all">
+                    <input type="checkbox" id="monthAll" checked="" onchange="toggleAllMonths(this.checked)">
+                    <span>كل الأشهر (جرد شامل)</span>
+                </label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="0" onchange="monthSelectionChanged()"> <span class="m-lbl-0">أيلول</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="1" onchange="monthSelectionChanged()"> <span class="m-lbl-1">تشرين الأول</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="2" onchange="monthSelectionChanged()"> <span class="m-lbl-2">تشرين الثاني</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="3" onchange="monthSelectionChanged()"> <span class="m-lbl-3">كانون الأول</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="4" onchange="monthSelectionChanged()"> <span class="m-lbl-4">كانون الثاني</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="5" onchange="monthSelectionChanged()"> <span class="m-lbl-5">شباط</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="6" onchange="monthSelectionChanged()"> <span class="m-lbl-6">آذار</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="7" onchange="monthSelectionChanged()"> <span class="m-lbl-7">نيسان</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="8" onchange="monthSelectionChanged()"> <span class="m-lbl-8">أيار</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="9" onchange="monthSelectionChanged()"> <span class="m-lbl-9">حزيران</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="10" onchange="monthSelectionChanged()"> <span class="m-lbl-10">تموز</span></label>
+                <label class="month-option"><input type="checkbox" class="month-check" value="11" onchange="monthSelectionChanged()"> <span class="m-lbl-11">آب</span></label>
+                <div class="month-actions">
+                    <button type="button" class="apply" onclick="closeMonthOptions()">تم</button>
+                    <button type="button" class="clear" onclick="clearMonthSelection()">إلغاء الاختيار</button>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-save" onclick="saveData()">💾 حفظ البيانات</button>
+        <button class="btn btn-success" onclick="exportToFormattedExcel()">📥 تصدير Excel</button>
+        <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة A3</button>
+        <button class="btn btn-reset" onclick="resetData()">🔄 إعادة ضبط</button>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table id="inventoryTable">
+        <thead>
+            <tr id="headerRow1">
+                <th rowspan="3" class="col-item-title sticky-col">الصنف<br><span id="itemsCount" style="font-size:11px; font-weight:normal;">عدد الأصناف: 0</span></th>
+                <th rowspan="3" style="min-width: 60px;">عدد الوحدات بالعلبة</th>
+                <th id="monthsSuperHeader" colspan="13">الكمية المشتراة (أشهر السنة الدراسية)</th>
+                <th rowspan="3" id="thBuyPrice">سعر الشراء (ل.ل.)</th>
+                <th rowspan="3" id="thTotalCost">تكلفة الشراء<span class="badge-formula">المجموع × السعر</span></th>
+                <th rowspan="3">المخزون المتبقي</th>
+                <th rowspan="3">العدد المباع<span class="badge-formula">المجموع - المخزون</span></th>
+                <th rowspan="3" id="thSellPrice">سعر المبيع (ل.ل.)</th>
+                <th rowspan="3" id="thRevenue">الإيرادات<span class="badge-formula">المباع × سعر المبيع</span></th>
+                <th rowspan="3" id="thStockValue">قيمة المخزون<span class="badge-formula">المخزون × سعر الشراء</span></th>
+                <th rowspan="3" class="hide-in-print">حذف</th>
+            </tr>
+            <tr id="headerRow2">
+                <th id="year2026Header" colspan="4" class="month-header">2026</th>
+                <th id="year2027Header" colspan="9" class="month-header">2027</th>
+            </tr>
+            <tr id="headerRow3">
+                <th class="month-header month-col-0">أيلول</th>
+                <th class="month-header month-col-1">تشرين 1</th>
+                <th class="month-header month-col-2">تشرين 2</th>
+                <th class="month-header month-col-3">كانون 1</th>
+                <th class="month-header month-col-4">كانون 2</th>
+                <th class="month-header month-col-5">شباط</th>
+                <th class="month-header month-col-6">آذار</th>
+                <th class="month-header month-col-7">نيسان</th>
+                <th class="month-header month-col-8">أيار</th>
+                <th class="month-header month-col-9">حزيران</th>
+                <th class="month-header month-col-10">تموز</th>
+                <th class="month-header month-col-11">آب</th>
+                <th class="month-header month-col-total">مجموع الكمية</th>
+            </tr>
+        </thead>
+        <tbody id="inventoryBody"></tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td id="footLabelCol" colspan="16" style="text-align: left; padding-left: 15px;">المجموع العام:</td>
+                <td id="grandTotalCost">0 ل.ل.</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td id="grandTotalRevenue">0 ل.ل.</td>
+                <td id="grandTotalStockValue">0 ل.ل.</td>
+                <td class="hide-in-print"></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<div class="signatures">
+    <div>
+        <h5>توقيع مسؤول الدكان المدرسي</h5>
+        <p>_______________________</p>
+    </div>
+    <div>
+        <h5>توقيع محاسب / مدير المدرسة</h5>
+        <p>_______________________</p>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, get, set, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAbl6VyEhwjSSo9w_pF2TG06sz0HfinMOk",
+        authDomain: "canteen-inventory-3a0a9.firebaseapp.com",
+        databaseURL: "https://canteen-inventory-3a0a9-default-rtdb.firebaseio.com",
+        projectId: "canteen-inventory-3a0a9",
+        storageBucket: "canteen-inventory-3a0a9.firebasestorage.app",
+        messagingSenderId: "977148154564",
+        appId: "1:977148154564:web:8ea936d2087441aeabaf91",
+        measurementId: "G-WVKBG7FEBF"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const LBP_RATE = 90000;
+    const baseMonthNames = [
+        "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول",
+        "كانون الثاني", "شباط", "آذار", "نيسان",
+        "أيار", "حزيران", "تموز", "آب"
+    ];
+
+    const defaultItems = [
+        "بريك 3 أصابع *24", "اولكر اصابع ملح *24", "اونيكا بالشوكولا *24", "ستارز فريز *24",
+        "سندويش اليغانس *12", "نامبر1 *24", "مياه بردوني صغير *12", "ماكاوو كرتون مشكل *24",
+        "بيسكولاتا اصابع شوكولا *16 صغير", "بيك رولز 50غ *24", "شوكولا Aila *24", "هالي شوكولا 66 غ *24",
+        "مارس *24", "سنيكرز *24", "شوكوبرنس *40", "جونيور كرواسون *24", "البيني albeni (كبير) *18",
+        "ميلك شيك شوكولا + فريز *24", "بريتزلز ابو العوف *24", "نوبا وايفر *10", "شوكولا كرانش حليب *30",
+        "كاستانيا كاجو *20", "كاستانيا فستق حلبي *20", "كاستانيا فستق بالعسل *20", "كاستانيا ذرة *20",
+        "كاستانيا فستق مقشور *40", "اوريو فريز *12", "شوكو بيسكوتو *24", "Tsipers شوكولا *24",
+        "Poppins شوكولا *24", "شيبس ماستر صغير *30", "نوفا كرواسون *12", "كيك ريماس براوني *24",
+        "كاب كيك ريماس *24", "كرسبي كرواسون"
+    ];
+
+    const tbody = document.getElementById('inventoryBody');
+
+    function toEnglishDigits(str) {
+        if (!str) return '';
+        return String(str).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    }
+
+    function parseSumExpression(expr) {
+        if (!expr) return 0;
+        const str = toEnglishDigits(String(expr)).trim();
+        if (!str) return 0;
+        const parts = str.split('+');
+        let sum = 0;
+        parts.forEach(p => {
+            const val = parseFloat(p.trim());
+            if (!isNaN(val)) sum += val;
+        });
+        return sum;
+    }
+
+    function getCurrency() {
+        const sel = document.getElementById('currencySelect');
+        return sel ? sel.value : 'LBP';
+    }
+
+    function formatMoney(amountInUSD) {
+        const curr = getCurrency();
+        if (curr === 'LBP') {
+            const lbpVal = Math.round(amountInUSD * LBP_RATE);
+            return lbpVal.toLocaleString('en-US') + ' ل.ل.';
+        } else {
+            return amountInUSD.toFixed(2) + ' $';
+        }
+    }
+
+    function updateTableHeaderLabels() {
+        const isLBP = getCurrency() === 'LBP';
+        const symbol = isLBP ? '(ل.ل.)' : '(\$)';
+        document.getElementById('thBuyPrice').innerText = `سعر الشراء ${symbol}`;
+        document.getElementById('thSellPrice').innerText = `سعر المبيع ${symbol}`;
+    }
+
+    function autoSaveHeaderYears() {
+        const y1 = toEnglishDigits(document.getElementById('startYearHeader').value);
+        const y2 = toEnglishDigits(document.getElementById('endYearHeader').value);
+        document.getElementById('startYearHeader').value = y1;
+        document.getElementById('endYearHeader').value = y2;
+        document.getElementById('year2026Header').innerText = y1;
+        document.getElementById('year2027Header').innerText = y2;
+        set(ref(db, 'canteen/years'), { startYear: y1, endYear: y2 });
+    }
+
+    function addRow(itemData) {
+        let name = "صنف جديد";
+        let months = Array(12).fill("0");
+        let unitsPerBox = 0;
+        let buyPriceUSD = 0;
+        let stockQty = 0;
+        let sellPriceUSD = 0;
+
+        if (typeof itemData === 'string') {
+            name = itemData;
+            const match = itemData.match(/\*\s*(\d+)\s*\$/);
+            unitsPerBox = match ? parseInt(match[1], 10) : 0;
+        } else if (typeof itemData === 'object' && itemData !== null) {
+            name = itemData.name || "صنف جديد";
+            months = itemData.months || Array(12).fill("0");
+            unitsPerBox = itemData.unitsPerBox || 0;
+            buyPriceUSD = itemData.buyPrice || 0;
+            stockQty = itemData.stockQty || 0;
+            sellPriceUSD = itemData.sellPrice || 0;
+        }
+
+        const tr = document.createElement('tr');
+        tr.dataset.buyPriceUsd = buyPriceUSD;
+        tr.dataset.sellPriceUsd = sellPriceUSD;
+
+        let monthInputsHtml = '';
+        for (let i = 0; i < 12; i++) {
+            const rawVal = months[i] !== undefined && months[i] !== null ? String(months[i]) : "0";
+            const numVal = parseSumExpression(rawVal);
+            monthInputsHtml += `<td class="month-col-${i}"><input type="text" class="monthly-qty" data-month="${i}" data-formula="${rawVal}" value="${numVal}"></td>`;
+        }
+
+        const isLBP = getCurrency() === 'LBP';
+        const displayBuyPrice = isLBP ? Math.round(buyPriceUSD * LBP_RATE) : buyPriceUSD;
+        const displaySellPrice = isLBP ? Math.round(sellPriceUSD * LBP_RATE) : sellPriceUSD;
+
+        tr.innerHTML = 
+            `<td class="col-item-cell sticky-col"><input type="text" class="item-name" value="${name}"></td>` +
+            `<td><input type="text" class="units-per-box" value="${unitsPerBox}"></td>` +
+            monthInputsHtml +
+            `<td class="computed-field total-purchased month-col-total">0</td>` +
+            `<td><input type="text" class="buy-price" value="${displayBuyPrice}"></td>` +
+            `<td class="computed-field total-cost">0</td>` +
+            `<td><input type="text" class="stock-qty" value="${stockQty}"></td>` +
+            `<td class="computed-field sold-qty">0</td>` +
+            `<td><input type="text" class="sell-price" value="${displaySellPrice}"></td>` +
+            `<td class="computed-field revenue">0</td>` +
+            `<td class="computed-field stock-value">0</td>` +
+            `<td class="hide-in-print"><button class="btn btn-danger">❌</button></td>`;
+            
+        tbody.appendChild(tr);
+
+        tr.querySelector('.btn-danger').addEventListener('click', () => {
+            if (confirm("هل أنت تأكد من حذف هذا الصنف؟")) {
+                tr.remove();
+                calculateTotals();
+                saveData(false);
+            }
+        });
+
+        // ربط الخانات الخاصة بالأشهر (الإدخال والحساب عند الخروج blur)
+        tr.querySelectorAll('.monthly-qty').forEach(inp => {
+            inp.addEventListener('focus', function() {
+                this.value = this.dataset.formula || this.value;
+            });
+            inp.addEventListener('input', function() {
+                this.value = toEnglishDigits(this.value);
+            });
+            inp.addEventListener('blur', function() {
+                this.value = toEnglishDigits(this.value);
+                this.dataset.formula = this.value;
+                const computed = parseSumExpression(this.value);
+                this.value = computed;
+                calculateRow(tr);
+                autoSave();
+            });
+            inp.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    this.blur();
+                }
+            });
+        });
+
+        // خانات الأسعار والمخزون وحدات العلبة: الإدخال الحر أثناء الكتابة والحساب عند blur/Enter
+        const buyPriceInput = tr.querySelector('.buy-price');
+        const sellPriceInput = tr.querySelector('.sell-price');
+
+        function setupField(input, onUpdate) {
+            input.addEventListener('input', function() {
+                this.value = toEnglishDigits(this.value);
+            });
+            input.addEventListener('blur', function() {
+                this.value = toEnglishDigits(this.value);
+                if (onUpdate) onUpdate(this);
+                calculateRow(tr);
+                autoSave();
+            });
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    this.blur();
+                }
+            });
+        }
+
+        setupField(buyPriceInput, (inp) => {
+            const val = parseFloat(inp.value) || 0;
+            tr.dataset.buyPriceUsd = getCurrency() === 'LBP' ? (val / LBP_RATE) : val;
+        });
+
+        setupField(sellPriceInput, (inp) => {
+            const val = parseFloat(inp.value) || 0;
+            tr.dataset.sellPriceUsd = getCurrency() === 'LBP' ? (val / LBP_RATE) : val;
+        });
+
+        const otherInputs = tr.querySelectorAll('.stock-qty, .units-per-box, .item-name');
+        otherInputs.forEach(input => setupField(input));
+
+        calculateRow(tr);
+        updateItemsCount();
+    }
+
+    function calculateRow(tr) {
+        if (!tr) return;
+
+        const selectedMonths = getSelectedMonths();
+        const monthInputs = tr.querySelectorAll('.monthly-qty');
+        let totalPurchased = 0;
+
+        if (selectedMonths.length === 12 || selectedMonths.length === 0) {
+            monthInputs.forEach(inp => {
+                totalPurchased += parseSumExpression(inp.dataset.formula || inp.value);
+            });
+        } else {
+            selectedMonths.forEach(idx => {
+                if (monthInputs[idx]) {
+                    totalPurchased += parseSumExpression(monthInputs[idx].dataset.formula || monthInputs[idx].value);
+                }
+            });
+        }
+
+        const totalPurchasedEl = tr.querySelector('.total-purchased');
+        if (totalPurchasedEl) totalPurchasedEl.innerText = totalPurchased;
+
+        const buyPriceUSD = parseFloat(tr.dataset.buyPriceUsd) || 0;
+        const sellPriceUSD = parseFloat(tr.dataset.sellPriceUsd) || 0;
+
+        const totalCostUSD = totalPurchased * buyPriceUSD;
+        tr.dataset.totalCostUsd = totalCostUSD;
+        const totalCostEl = tr.querySelector('.total-cost');
+        if (totalCostEl) totalCostEl.innerText = formatMoney(totalCostUSD);
+
+        const stockQty = parseFloat(toEnglishDigits(tr.querySelector('.stock-qty').value)) || 0;
+        const soldQty = Math.max(0, totalPurchased - stockQty);
+        const soldQtyEl = tr.querySelector('.sold-qty');
+        if (soldQtyEl) soldQtyEl.innerText = soldQty;
+
+        const revenueUSD = soldQty * sellPriceUSD;
+        tr.dataset.revenueUsd = revenueUSD;
+        const revenueEl = tr.querySelector('.revenue');
+        if (revenueEl) revenueEl.innerText = formatMoney(revenueUSD);
+
+        const stockValueUSD = stockQty * buyPriceUSD;
+        tr.dataset.stockValueUsd = stockValueUSD;
+        const stockValueEl = tr.querySelector('.stock-value');
+        if (stockValueEl) stockValueEl.innerText = formatMoney(stockValueUSD);
+
+        calculateTotals();
+    }
+
+    function onCurrencyChange() {
+        updateTableHeaderLabels();
+        const rows = tbody.querySelectorAll('tr');
+        const isLBP = getCurrency() === 'LBP';
+
+        rows.forEach(tr => {
+            const buyPriceUSD = parseFloat(tr.dataset.buyPriceUsd) || 0;
+            const sellPriceUSD = parseFloat(tr.dataset.sellPriceUsd) || 0;
+
+            const buyInput = tr.querySelector('.buy-price');
+            const sellInput = tr.querySelector('.sell-price');
+
+            if (buyInput) {
+                buyInput.value = isLBP ? Math.round(buyPriceUSD * LBP_RATE) : buyPriceUSD;
+            }
+            if (sellInput) {
+                sellInput.value = isLBP ? Math.round(sellPriceUSD * LBP_RATE) : sellPriceUSD;
+            }
+
+            calculateRow(tr);
+        });
+
+        calculateTotals();
+    }
+
+    function calculateTotals() {
+        let grandCostUSD = 0;
+        let grandRevenueUSD = 0;
+        let grandStockValUSD = 0;
+
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            if (tr.style.display !== 'none') {
+                grandCostUSD += parseFloat(tr.dataset.totalCostUsd) || 0;
+                grandRevenueUSD += parseFloat(tr.dataset.revenueUsd) || 0;
+                grandStockValUSD += parseFloat(tr.dataset.stockValueUsd) || 0;
+            }
+        });
+
+        const netProfitUSD = grandRevenueUSD - grandCostUSD;
+
+        document.getElementById('grandTotalCost').innerText = formatMoney(grandCostUSD);
+        document.getElementById('grandTotalRevenue').innerText = formatMoney(grandRevenueUSD);
+        document.getElementById('grandTotalStockValue').innerText = formatMoney(grandStockValUSD);
+
+        document.getElementById('dashTotalCost').innerText = formatMoney(grandCostUSD);
+        document.getElementById('dashTotalRevenue').innerText = formatMoney(grandRevenueUSD);
+        document.getElementById('dashTotalStockValue').innerText = formatMoney(grandStockValUSD);
+        document.getElementById('dashNetProfit').innerText = formatMoney(netProfitUSD);
+        
+        updateItemsCount();
+    }
+
+    function updateItemsCount() {
+        const visibleRows = Array.from(tbody.querySelectorAll('tr')).filter(tr => tr.style.display !== 'none');
+        const el = document.getElementById('itemsCount');
+        if (el) el.innerText = `عدد الأصناف: ${visibleRows.length}`;
+    }
+
+    function getSelectedMonths() {
+        const checks = Array.from(document.querySelectorAll('.month-check:checked'));
+        return checks.map(ch => parseInt(ch.value, 10)).sort((a, b) => a - b);
+    }
+
+    function saveData(showToast = true) {
+        const rows = tbody.querySelectorAll('tr');
+        const tableData = [];
+
+        rows.forEach(tr => {
+            const name = tr.querySelector('.item-name').value;
+            const monthInputs = tr.querySelectorAll('.monthly-qty');
+            const months = Array.from(monthInputs).map(inp => inp.dataset.formula || inp.value || "0");
+            const unitsPerBox = parseInt(toEnglishDigits(tr.querySelector('.units-per-box').value), 10) || 0;
+            const buyPriceUSD = parseFloat(tr.dataset.buyPriceUsd) || 0;
+            const stockQty = parseFloat(toEnglishDigits(tr.querySelector('.stock-qty').value)) || 0;
+            const sellPriceUSD = parseFloat(tr.dataset.sellPriceUsd) || 0;
+
+            tableData.push({
+                name: name,
+                months: months,
+                unitsPerBox: unitsPerBox,
+                buyPrice: buyPriceUSD,
+                stockQty: stockQty,
+                sellPrice: sellPriceUSD
+            });
+        });
+
+        set(ref(db, 'canteen/items'), tableData);
+        
+        const y1 = toEnglishDigits(document.getElementById('startYearHeader').value);
+        const y2 = toEnglishDigits(document.getElementById('endYearHeader').value);
+        set(ref(db, 'canteen/years'), { startYear: y1, endYear: y2 });
+
+        if (showToast) {
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2200);
+        }
+    }
+
+    let autoSaveTimeout;
+    function autoSave() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            saveData(false);
+        }, 1000);
+    }
+
+    window.exportToFormattedExcel = async function() {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('جرد الدكان', { views: [{ rtl: true }] });
+
+        const isLBP = getCurrency() === 'LBP';
+        const currencySymbol = isLBP ? 'ل.ل.' : '\$';
+
+        const row1 = ["الصنف", "عدد الوحدات بالعلبة", "الكمية المشتراة (أشهر السنة الدراسية)", "", "", "", "", "", "", "", "", "", "", "", "", `سعر الشراء (${currencySymbol})`, "تكلفة الشراء", "المخزون المتبقي", "العدد المباع", `سعر المبيع (${currencySymbol})`, "الإيرادات", "قيمة المخزون"];
+        const row2 = ["", "", "2026", "", "", "", "2027", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
+        const row3 = ["", ""];
+        baseMonthNames.forEach(m => row3.push(m));
+        row3.push("مجموع الكمية", "", "", "", "", "", "", "");
+
+        worksheet.addRow(row1);
+        worksheet.addRow(row2);
+        worksheet.addRow(row3);
+
+        worksheet.mergeCells('A1:A3');
+        worksheet.mergeCells('B1:B3');
+        worksheet.mergeCells('C1:O1');
+        worksheet.mergeCells('P1:P3');
+        worksheet.mergeCells('Q1:Q3');
+        worksheet.mergeCells('R1:R3');
+        worksheet.mergeCells('S1:S3');
+        worksheet.mergeCells('T1:T3');
+        worksheet.mergeCells('U1:U3');
+        worksheet.mergeCells('V1:V3');
+
+        worksheet.mergeCells('C2:F2');
+        worksheet.mergeCells('G2:O2');
+
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            if (tr.style.display !== 'none') {
+                const rowData = [];
+                rowData.push(tr.querySelector('.item-name').value);
+                rowData.push(parseInt(toEnglishDigits(tr.querySelector('.units-per-box').value), 10) || 0);
+
+                tr.querySelectorAll('.monthly-qty').forEach(inp => {
+                    rowData.push(parseSumExpression(inp.dataset.formula || inp.value));
+                });
+
+                rowData.push(parseInt(tr.querySelector('.total-purchased').innerText, 10) || 0);
+                rowData.push(parseFloat(toEnglishDigits(tr.querySelector('.buy-price').value)) || 0);
+                rowData.push(tr.querySelector('.total-cost').innerText);
+                rowData.push(parseFloat(toEnglishDigits(tr.querySelector('.stock-qty').value)) || 0);
+                rowData.push(parseInt(tr.querySelector('.sold-qty').innerText, 10) || 0);
+                rowData.push(parseFloat(toEnglishDigits(tr.querySelector('.sell-price').value)) || 0);
+                rowData.push(tr.querySelector('.revenue').innerText);
+                rowData.push(tr.querySelector('.stock-value').innerText);
+
+                worksheet.addRow(rowData);
+            }
+        });
+
+        const footRowData = ["المجموع العام:", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", document.getElementById('grandTotalCost').innerText, "-", "-", "-", document.getElementById('grandTotalRevenue').innerText, document.getElementById('grandTotalStockValue').innerText];
+        const addedFootRow = worksheet.addRow(footRowData);
+        worksheet.mergeCells(`A${addedFootRow.number}:P${addedFootRow.number}`);
+
+        const primaryFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2A5298' } };
+        const monthFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B69B7' } };
+        const footFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3C72' } };
+        const headerFont = { color: { argb: 'FFFFFF' }, bold: true, name: 'Segoe UI' };
+
+        for (let r = 1; r <= 3; r++) {
+            const row = worksheet.getRow(r);
+            row.eachCell((cell) => {
+                cell.fill = primaryFill;
+                cell.font = headerFont;
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            });
+        }
+
+        ['C2', 'G2'].forEach(c => worksheet.getCell(c).fill = monthFill);
+        for(let col=3; col<=15; col++) {
+            worksheet.getRow(3).getCell(col).fill = monthFill;
+        }
+
+        worksheet.eachRow((row, rowNum) => {
+            if (rowNum > 3 && rowNum < addedFootRow.number) {
+                row.eachCell((cell, colNum) => {
+                    cell.alignment = { vertical: 'middle', horizontal: colNum === 1 ? 'right' : 'center' };
+                    cell.border = { top: { style: 'thin', color: { argb: 'CBD5E1' } }, left: { style: 'thin', color: { argb: 'CBD5E1' } }, bottom: { style: 'thin', color: { argb: 'CBD5E1' } }, right: { style: 'thin', color: { argb: 'CBD5E1' } } };
+                });
+            }
+        });
+
+        addedFootRow.eachCell((cell) => {
+            cell.fill = footFill;
+            cell.font = headerFont;
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+
+        worksheet.columns.forEach((col, idx) => {
+            col.width = idx === 0 ? 30 : 12;
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'جرد_الدكان_المدرسي_منسق.xlsx';
+        link.click();
+    };
+
+    window.addNewRow = function() {
+        addRow("صنف جديد");
+        saveData(false);
+    };
+
+    window.saveData = saveData;
+
+    window.resetData = function() {
+        if (confirm("هل أنت تأكد من إعادة الضبط؟ سيتم حذف البيانات من السحابة وإعادة تعيين القائمة الافتراضية.")) {
+            remove(ref(db, 'canteen')).then(() => {
+                location.reload();
+            });
+        }
+    };
+
+    window.filterItems = function() {
+        const val = document.getElementById('searchInput').value.toLowerCase().trim();
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            const nameInput = tr.querySelector('.item-name');
+            const name = nameInput ? nameInput.value.toLowerCase() : '';
+            tr.style.display = name.includes(val) ? '' : 'none';
+        });
+        calculateTotals();
+    };
+
+    window.onCurrencyChange = onCurrencyChange;
+    window.autoSaveHeaderYears = autoSaveHeaderYears;
+
+    window.toggleMonthOptions = () => document.getElementById('monthOptions').classList.toggle('open');
+    window.closeMonthOptions = () => document.getElementById('monthOptions').classList.remove('open');
+    
+    window.toggleAllMonths = (checked) => {
+        document.querySelectorAll('.month-check').forEach(ch => ch.checked = checked);
+        applyMonthFilter();
+    };
+
+    window.monthSelectionChanged = () => {
+        const checks = document.querySelectorAll('.month-check');
+        const selected = document.querySelectorAll('.month-check:checked');
+        document.getElementById('monthAll').checked = selected.length === checks.length;
+        applyMonthFilter();
+    };
+
+    window.clearMonthSelection = () => {
+        document.querySelectorAll('.month-check').forEach(ch => ch.checked = false);
+        document.getElementById('monthAll').checked = false;
+        applyMonthFilter();
+    };
+
+    function applyMonthFilter() {
+        const selectedMonths = getSelectedMonths();
+        const headerRow2 = document.getElementById('headerRow2');
+        const monthsSuperHeader = document.getElementById('monthsSuperHeader');
+        const footLabelCol = document.getElementById('footLabelCol');
+
+        const showAll = selectedMonths.length === 0 || selectedMonths.length === 12;
+
+        if (showAll) {
+            monthsSuperHeader.innerText = "الكمية المشتراة (أشهر السنة الدراسية)";
+            monthsSuperHeader.colSpan = 13;
+            headerRow2.style.display = '';
+            footLabelCol.colSpan = 16;
+
+            for (let i = 0; i < 12; i++) {
+                toggleColumnVisibility(`.month-col-${i}`, true);
+            }
+            toggleColumnVisibility('.month-col-total', true);
+        } else {
+            monthsSuperHeader.innerText = `الكمية المشتراة للأشهر المحددة (${selectedMonths.length} أشهر)`;
+            monthsSuperHeader.colSpan = selectedMonths.length;
+            headerRow2.style.display = 'none';
+            footLabelCol.colSpan = selectedMonths.length + 3;
+
+            for (let i = 0; i < 12; i++) {
+                toggleColumnVisibility(`.month-col-${i}`, selectedMonths.includes(i));
+            }
+            toggleColumnVisibility('.month-col-total', false);
+        }
+
+        const button = document.getElementById('monthSelectButton');
+        if (selectedMonths.length === 0 || selectedMonths.length === 12) {
+            button.innerText = "كل الأشهر (جرد شامل) ▾";
+        } else {
+            button.innerText = `تم اختيار ${selectedMonths.length} أشهر ▾`;
+        }
+
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => calculateRow(tr));
+    }
+
+    function toggleColumnVisibility(selector, show) {
+        document.querySelectorAll(selector).forEach(el => el.style.display = show ? '' : 'none');
+    }
+
+    // جلب سنوات الهيدر مرة واحدة عند البداية بدلاً من Listener دائم لتفادي إعادة الرسم
+    get(ref(db, 'canteen/years')).then(snapshot => {
+        const data = snapshot.val();
+        if (data) {
+            document.getElementById('startYearHeader').value = data.startYear || '2026';
+            document.getElementById('endYearHeader').value = data.endYear || '2027';
+            document.getElementById('year2026Header').innerText = data.startYear || '2026';
+            document.getElementById('year2027Header').innerText = data.endYear || '2027';
+        }
+    });
+
+    // جلب البيانات مرة واحدة عند التحميل الأولي بدلاً من onValue لمنع مسح الجدول أثناء الكتابة
+    get(ref(db, 'canteen/items')).then(snapshot => {
+        const items = snapshot.val();
+        tbody.innerHTML = '';
+        if (items && Array.isArray(items) && items.length > 0) {
+            items.forEach(item => addRow(item));
+        } else {
+            defaultItems.forEach(item => addRow(item));
+        }
+        applyMonthFilter();
+    });
+
+</script>
+
+</body></html>
